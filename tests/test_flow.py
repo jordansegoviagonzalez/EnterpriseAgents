@@ -3,13 +3,11 @@ from enterpriseagents.agents.director import DirectorAgent
 from enterpriseagents.agents.docs import DocsAgent
 from enterpriseagents.agents.reviewer import ReviewerAgent
 from enterpriseagents.audit.logger import AuditLogger
+from enterpriseagents.core.router import DynamicRouter
 from enterpriseagents.core.run import RunCoordinator, RunRequest
+from enterpriseagents.memory.store import MemoryStore
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
-
-
-from enterpriseagents.core.router import DynamicRouter
-from enterpriseagents.memory.store import MemoryStore
 
 def test_end_to_end_flow(tmp_path, mock_llm):
     """Verify the whole lifecycle works with a fake brain."""

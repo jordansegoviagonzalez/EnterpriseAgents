@@ -6,10 +6,8 @@ from enterpriseagents.agents.builder import BuilderOutput
 from enterpriseagents.agents.director import Plan
 from enterpriseagents.agents.docs import DocsOutput
 from enterpriseagents.core.models import AcceptanceCriteria, Task, ToolCall
-from enterpriseagents.llm.provider import LlmProvider
-
-
 from enterpriseagents.core.router import NextAction, RoutingDecision
+from enterpriseagents.llm.provider import LlmProvider
 
 class MockLlmProvider(LlmProvider):
     """A fake brain for testing."""
