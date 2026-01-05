@@ -7,6 +7,7 @@ from enterpriseagents.core.run import RunCoordinator, RunRequest
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 
+
 def test_end_to_end_flow(tmp_path, mock_llm):
     """Verify the whole lifecycle works with a fake brain."""
     

@@ -8,6 +8,7 @@ from enterpriseagents.agents.docs import DocsOutput
 from enterpriseagents.core.models import AcceptanceCriteria, Task, ToolCall
 from enterpriseagents.llm.provider import LlmProvider
 
+
 class MockLlmProvider(LlmProvider):
     """A fake brain for testing.
     
