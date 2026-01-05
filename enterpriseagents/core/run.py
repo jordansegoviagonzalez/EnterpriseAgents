@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from enterpriseagents.agents.builder import BuilderAgent
 from enterpriseagents.agents.director import DirectorAgent
@@ -116,7 +117,7 @@ class RunCoordinator:
             )
         )
 
-    def _run_builder(self, task, workspace, dry_run, board):
+    def _run_builder(self, task: Any, workspace: str, dry_run: bool, board: KanbanBoard) -> None:
         tool_calls = self._builder.propose(task=task, workspace=workspace)
         for call in tool_calls:
             if not self._execute_tool(call, workspace, dry_run):
@@ -124,7 +125,7 @@ class RunCoordinator:
                 return
         self._audit.event(board.move(task.id, TaskStatus.REVIEW))
 
-    def _run_reviewer(self, task, workspace, dry_run, board):
+    def _run_reviewer(self, task: Any, workspace: str, dry_run: bool, board: KanbanBoard) -> None:
         review = self._reviewer.review(task=task, workspace=workspace, dry_run=dry_run)
         if review.ok:
             self._audit.event(board.move(task.id, TaskStatus.DONE))
@@ -132,12 +133,12 @@ class RunCoordinator:
             # Send back to backlog or ready to retry
             self._audit.event(board.move(task.id, TaskStatus.READY))
 
-    def _run_docs(self, workspace, instruction, dry_run):
+    def _run_docs(self, workspace: str, instruction: str, dry_run: bool) -> None:
         docs_calls = self._docs.finalize(workspace=workspace, instruction=instruction)
         for call in docs_calls:
             self._execute_tool(call, workspace, dry_run)
 
-    def _execute_tool(self, call, workspace, dry_run) -> bool:
+    def _execute_tool(self, call: Any, workspace: str, dry_run: bool) -> bool:
         decision = self._policy.evaluate(call=call, workspace=workspace)
         self._audit.approval(decision.to_record(call))
         self._audit.tool_call(call)

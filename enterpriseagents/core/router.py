@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from enum import Enum
 
 from pydantic import BaseModel
@@ -64,4 +65,4 @@ class DynamicRouter:
             {"role": "user", "content": f"Current State: {summary}"},
         ]
 
-        return self.llm.structured(messages=messages, schema=RoutingDecision)
+        return cast(RoutingDecision, self.llm.structured(messages=messages, schema=RoutingDecision))

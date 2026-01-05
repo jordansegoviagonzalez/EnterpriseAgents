@@ -4,11 +4,11 @@ import os
 from dataclasses import dataclass
 
 from enterpriseagents.core.models import ToolCall, ToolResult
-from enterpriseagents.tools.base import BaseTool, ToolSpec
+from enterpriseagents.tools.base import Tool, ToolSpec
 
 
 @dataclass
-class WebSearchTool(BaseTool):
+class WebSearchTool(Tool):
     """Provides capability to query external search engines.
     
     This tool allows agents to retrieve real-time information from the web,
@@ -16,17 +16,12 @@ class WebSearchTool(BaseTool):
     must be discovered rather than hallucinated.
     """
 
-    @property
-    def spec(self) -> ToolSpec:
-        return ToolSpec(
-            name="web_search",
-            description="Search the internet for technical documentation or solutions.",
-            args_schema={
-                "query": "The search string (e.g., 'python pydantic v2 migration guide')"
-            },
-        )
+    spec = ToolSpec(
+        name="web_search",
+        description="Search the internet for technical documentation or solutions."
+    )
 
-    def execute(self, call: ToolCall, workspace: str) -> ToolResult:
+    def execute(self, *, call: ToolCall, workspace: str) -> ToolResult:
         query = str(call.args.get("query", ""))
         
         # In a real enterprise deployment, we would connect this to a paid API
