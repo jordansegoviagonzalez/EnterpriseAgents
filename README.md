@@ -1,3 +1,4 @@
+![alt text](enterpriseagents_logo_v3.gif)
 # Enterprise Agents
 
 Enterprise Agents is an orchestration layer designed to transform Large Language Models into capable delivery engines. By connecting intelligent models such as OpenAI, DeepSeek, or Ollama to a structured environment, this system enables the reliable execution of complex software engineering tasks.
