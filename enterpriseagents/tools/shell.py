@@ -27,5 +27,5 @@ class ShellTool(Tool):
             out = (proc.stdout or "") + (proc.stderr or "")
             ok = proc.returncode == 0
             return ToolResult(call_id=call.call_id, ok=ok, output=out, metadata={"returncode": proc.returncode})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return ToolResult(call_id=call.call_id, ok=False, output=f"run_command failed: {e}")

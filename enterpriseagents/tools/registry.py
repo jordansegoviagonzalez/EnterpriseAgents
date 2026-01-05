@@ -16,7 +16,7 @@ class ToolRegistry:
     _tools: dict[str, Tool]
 
     @classmethod
-    def default(cls) -> "ToolRegistry":
+    def default(cls) -> ToolRegistry:
         tools = [FileSystemTool(), ReadFileTool(), ShellTool(), GitCommitTool()]
         return cls(_tools={t.spec.name: t for t in tools})
 

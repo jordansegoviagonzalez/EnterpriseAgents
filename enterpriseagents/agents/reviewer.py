@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import List
 
 from enterpriseagents.core.events import Event, EventType
 from enterpriseagents.core.models import Task, ToolCall
@@ -13,7 +12,7 @@ from enterpriseagents.utils.time import utc_now_iso
 @dataclass(frozen=True)
 class ReviewResult:
     ok: bool
-    events: List[Event]
+    events: list[Event]
 
 
 @dataclass

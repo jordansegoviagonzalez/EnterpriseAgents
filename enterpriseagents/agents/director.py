@@ -3,9 +3,9 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from enterpriseagents.core.models import AcceptanceCriteria, Task
+from enterpriseagents.core.models import Task
 from enterpriseagents.llm.provider import LlmProvider
 
 

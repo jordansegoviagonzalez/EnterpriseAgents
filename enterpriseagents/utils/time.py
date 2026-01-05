@@ -4,4 +4,4 @@ import datetime
 
 
 def utc_now_iso() -> str:
-    return datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+    return datetime.datetime.now(tz=datetime.UTC).isoformat()

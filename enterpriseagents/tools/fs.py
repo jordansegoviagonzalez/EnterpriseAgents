@@ -22,7 +22,7 @@ class FileSystemTool(Tool):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
             return ToolResult(call_id=call.call_id, ok=True, output=f"Wrote {rel}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return ToolResult(call_id=call.call_id, ok=False, output=f"write_file failed: {e}")
 
 
@@ -40,5 +40,5 @@ class ReadFileTool(Tool):
 
             content = path.read_text(encoding="utf-8")
             return ToolResult(call_id=call.call_id, ok=True, output=content, metadata={"path": rel})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return ToolResult(call_id=call.call_id, ok=False, output=f"read_file failed: {e}")

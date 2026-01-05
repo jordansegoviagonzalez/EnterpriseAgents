@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from enterpriseagents.core.events import Event, EventType
 from enterpriseagents.core.models import Task, TaskStatus
