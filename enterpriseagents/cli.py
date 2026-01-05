@@ -22,6 +22,9 @@ app = typer.Typer(no_args_is_help=True)
 console = Console()
 
 
+from enterpriseagents.core.router import DynamicRouter
+from enterpriseagents.memory.store import MemoryStore
+
 @app.command()
 def run(
     instruction: str = typer.Argument(..., help="One instruction for the agent crew."),
@@ -38,11 +41,18 @@ def run(
     run_id = str(uuid.uuid4())
 
     # Initialize the "Brain"
-    # I'm defaulting to OpenAI, but this handles DeepSeek/Ollama via settings too.
     llm = OpenAIProvider(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,
     )
+
+    # Initialize Memory
+    memory_path = Path(".enterpriseagents/memory.db")
+    memory_path.parent.mkdir(exist_ok=True)
+    memory = MemoryStore(db_path=memory_path)
+    
+    # Initialize Router
+    router = DynamicRouter(llm=llm)
 
     audit = AuditLogger(runs_dir=Path(settings.runs_dir), run_id=run_id)
     policy = PolicyEngine()
@@ -63,6 +73,8 @@ def run(
         builder=builder,
         reviewer=reviewer,
         docs=docs_agent,
+        router=router,
+        memory=memory,
     )
 
     console.print(Panel.fit(f"[bold]EnterpriseAgents[/bold]\nRun: {run_id}\nWorkspace: {workspace}"))

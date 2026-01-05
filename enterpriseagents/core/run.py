@@ -11,6 +11,8 @@ from enterpriseagents.audit.logger import AuditLogger
 from enterpriseagents.core.events import Event, EventType
 from enterpriseagents.core.kanban import KanbanBoard
 from enterpriseagents.core.models import TaskStatus
+from enterpriseagents.core.router import DynamicRouter, NextAction
+from enterpriseagents.memory.store import MemoryStore
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 from enterpriseagents.utils.time import utc_now_iso
@@ -25,8 +27,11 @@ class RunRequest:
 
 class RunCoordinator:
     """Manages the complete lifecycle of a workflow execution.
-    
-    The Run Coordinator serves as the central orchestration engine. It initializes the environment, manages the Kanban state, facilitates communication between agents, and ensures that all events are properly audited and governed by policy.
+
+    The Run Coordinator serves as the central orchestration engine. It initializes 
+    the environment, manages the Kanban state, facilitates communication between agents 
+    via the Dynamic Router, and ensures that all events are properly audited and 
+    governed by policy.
     """
 
     def __init__(
@@ -40,6 +45,8 @@ class RunCoordinator:
         builder: BuilderAgent,
         reviewer: ReviewerAgent,
         docs: DocsAgent,
+        router: DynamicRouter,
+        memory: MemoryStore,
     ) -> None:
         self._run_id = run_id
         self._audit = audit
@@ -49,6 +56,8 @@ class RunCoordinator:
         self._builder = builder
         self._reviewer = reviewer
         self._docs = docs
+        self._router = router
+        self._memory = memory
 
     def execute(self, req: RunRequest) -> None:
         Path(req.workspace).mkdir(parents=True, exist_ok=True)
@@ -63,95 +72,39 @@ class RunCoordinator:
         )
 
         board = KanbanBoard(run_id=self._run_id)
+        
+        # Initial Planning Phase (Mandatory start)
         tasks = self._director.plan(req.instruction)
         for ev in board.add_tasks(tasks):
             self._audit.event(ev)
 
-        for t in board.tasks.values():
-            self._audit.event(board.move(t.id, TaskStatus.READY))
-
+        # Dynamic Execution Loop
         while True:
-            task = board.next_ready()
-            if task is None:
+            # Ask the Brain what to do next
+            decision = self._router.decide(board)
+            
+            if decision.action == NextAction.FINISH:
                 break
+                
+            if decision.action == NextAction.PLAN:
+                # In a future iteration, we can replan. 
+                # For now, we assume initial plan is sufficient or log a warning.
+                pass
 
-            self._audit.event(
-                Event(
-                    type=EventType.TASK_STARTED,
-                    ts=utc_now_iso(),
-                    run_id=self._run_id,
-                    payload={"task_id": task.id},
-                )
-            )
-            self._audit.event(board.move(task.id, TaskStatus.DOING))
+            elif decision.action == NextAction.WORK:
+                task = board.next_ready()
+                if task:
+                    self._audit.event(board.move(task.id, TaskStatus.DOING))
+                    self._run_builder(task, req.workspace, req.dry_run, board)
 
-            tool_calls = self._builder.propose(task=task, workspace=req.workspace)
+            elif decision.action == NextAction.REVIEW:
+                # Find tasks that need review
+                for t in board.tasks.values():
+                    if t.status == TaskStatus.REVIEW:
+                        self._run_reviewer(t, req.workspace, req.dry_run, board)
 
-            for call in tool_calls:
-                decision = self._policy.evaluate(call=call, workspace=req.workspace)
-                self._audit.approval(decision.to_record(call))
-                self._audit.tool_call(call)
-
-                if decision.denied:
-                    self._audit.event(
-                        Event(
-                            type=EventType.CHECK_FAILED,
-                            ts=utc_now_iso(),
-                            run_id=self._run_id,
-                            payload={"task_id": task.id, "reason": f"Policy denied tool call: {call.tool_name}"},
-                        )
-                    )
-                    self._audit.event(board.move(task.id, TaskStatus.BLOCKED))
-                    break
-
-                if req.dry_run:
-                    self._audit.tool_result(call.call_id, ok=True, output="DRY_RUN: not executed")
-                    continue
-
-                result = self._tools.execute(call=call, workspace=req.workspace)
-                self._audit.tool_result(result.call_id, ok=result.ok, output=result.output)
-
-                if not result.ok:
-                    self._audit.event(
-                        Event(
-                            type=EventType.CHECK_FAILED,
-                            ts=utc_now_iso(),
-                            run_id=self._run_id,
-                            payload={"task_id": task.id, "reason": "Tool execution failed", "tool": call.tool_name},
-                        )
-                    )
-                    self._audit.event(board.move(task.id, TaskStatus.REVIEW))
-                    break
-
-            review = self._reviewer.review(task=task, workspace=req.workspace, dry_run=req.dry_run)
-            for ev in review.events:
-                # normalize run_id if needed, or ensure Reviewer returns full Event
-                ev2 = Event(type=ev.type, ts=ev.ts, run_id=self._run_id, payload=ev.payload)
-                self._audit.event(ev2)
-
-            if review.ok:
-                self._audit.event(board.move(task.id, TaskStatus.DONE))
-                self._audit.event(
-                    Event(
-                        type=EventType.TASK_DONE,
-                        ts=utc_now_iso(),
-                        run_id=self._run_id,
-                        payload={"task_id": task.id},
-                    )
-                )
-            else:
-                self._audit.event(board.move(task.id, TaskStatus.REVIEW))
-
-        docs_calls = self._docs.finalize(workspace=req.workspace, instruction=req.instruction)
-        for call in docs_calls:
-            decision = self._policy.evaluate(call=call, workspace=req.workspace)
-            self._audit.approval(decision.to_record(call))
-            self._audit.tool_call(call)
-            if req.dry_run:
-                self._audit.tool_result(call.call_id, ok=True, output="DRY_RUN: not executed")
-                continue
-            result = self._tools.execute(call=call, workspace=req.workspace)
-            self._audit.tool_result(result.call_id, ok=result.ok, output=result.output)
+        # Final Documentation Phase
+        self._run_docs(req.workspace, req.instruction, req.dry_run)
 
         self._audit.finish(workspace=req.workspace)
         self._audit.event(
@@ -162,3 +115,40 @@ class RunCoordinator:
                 payload={"workspace": req.workspace},
             )
         )
+
+    def _run_builder(self, task, workspace, dry_run, board):
+        tool_calls = self._builder.propose(task=task, workspace=workspace)
+        for call in tool_calls:
+            if not self._execute_tool(call, workspace, dry_run):
+                self._audit.event(board.move(task.id, TaskStatus.BLOCKED))
+                return
+        self._audit.event(board.move(task.id, TaskStatus.REVIEW))
+
+    def _run_reviewer(self, task, workspace, dry_run, board):
+        review = self._reviewer.review(task=task, workspace=workspace, dry_run=dry_run)
+        if review.ok:
+            self._audit.event(board.move(task.id, TaskStatus.DONE))
+        else:
+            # Send back to backlog or ready to retry
+            self._audit.event(board.move(task.id, TaskStatus.READY))
+
+    def _run_docs(self, workspace, instruction, dry_run):
+        docs_calls = self._docs.finalize(workspace=workspace, instruction=instruction)
+        for call in docs_calls:
+            self._execute_tool(call, workspace, dry_run)
+
+    def _execute_tool(self, call, workspace, dry_run) -> bool:
+        decision = self._policy.evaluate(call=call, workspace=workspace)
+        self._audit.approval(decision.to_record(call))
+        self._audit.tool_call(call)
+
+        if decision.denied:
+            return False
+
+        if dry_run:
+            self._audit.tool_result(call.call_id, ok=True, output="DRY_RUN: not executed")
+            return True
+
+        result = self._tools.execute(call=call, workspace=workspace)
+        self._audit.tool_result(result.call_id, ok=result.ok, output=result.output)
+        return result.ok
