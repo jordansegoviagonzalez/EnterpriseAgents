@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import cast
 from enum import Enum
+from typing import cast
 
 from pydantic import BaseModel
 
