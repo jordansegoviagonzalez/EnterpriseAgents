@@ -22,7 +22,7 @@ class OpenAIProvider(LlmProvider):
     This prevents us from writing 3 separate clients.
     """
 
-    def __init__(self, api_key: str, base_url: str | None = None, default_model: str = "gpt-4o") -> None:
+    def __init__(self, api_key: str | None, base_url: str | None = None, default_model: str = "gpt-4o") -> None:
         # If I don't have an API key (like for local Ollama), I'll just use a dummy
         # string because the client SDK validates presence, but local servers might ignore it.
         key = api_key or "sk-dummy-key-for-local-usage"
