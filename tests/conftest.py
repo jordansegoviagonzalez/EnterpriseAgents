@@ -9,6 +9,7 @@ from enterpriseagents.core.models import AcceptanceCriteria, Task, ToolCall
 from enterpriseagents.core.router import NextAction, RoutingDecision
 from enterpriseagents.llm.provider import LlmProvider
 
+
 class MockLlmProvider(LlmProvider):
     """A fake brain for testing."""
     
