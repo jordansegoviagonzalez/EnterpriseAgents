@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from enterpriseagents.core.kanban import KanbanBoard
 from enterpriseagents.llm.provider import LlmProvider

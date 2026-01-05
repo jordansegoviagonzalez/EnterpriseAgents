@@ -13,17 +13,16 @@ from enterpriseagents.agents.docs import DocsAgent
 from enterpriseagents.agents.reviewer import ReviewerAgent
 from enterpriseagents.audit.logger import AuditLogger
 from enterpriseagents.config.settings import Settings
+from enterpriseagents.core.router import DynamicRouter
 from enterpriseagents.core.run import RunCoordinator, RunRequest
 from enterpriseagents.llm.openai import OpenAIProvider
+from enterpriseagents.memory.store import MemoryStore
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 
-
-from enterpriseagents.core.router import DynamicRouter
-from enterpriseagents.memory.store import MemoryStore
 
 @app.command()
 def run(
