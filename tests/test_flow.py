@@ -8,6 +8,9 @@ from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 
 
+from enterpriseagents.core.router import DynamicRouter
+from enterpriseagents.memory.store import MemoryStore
+
 def test_end_to_end_flow(tmp_path, mock_llm):
     """Verify the whole lifecycle works with a fake brain."""
     
@@ -18,6 +21,11 @@ def test_end_to_end_flow(tmp_path, mock_llm):
     audit = AuditLogger(runs_dir=runs_dir, run_id="test-run")
     policy = PolicyEngine()
     tools = ToolRegistry.default()
+    
+    # New dependencies
+    memory_path = tmp_path / "memory.db"
+    memory = MemoryStore(db_path=memory_path)
+    router = DynamicRouter(llm=mock_llm)
     
     # Wired up agents
     director = DirectorAgent(llm=mock_llm)
@@ -34,6 +42,8 @@ def test_end_to_end_flow(tmp_path, mock_llm):
         builder=builder,
         reviewer=reviewer,
         docs=docs,
+        router=router,
+        memory=memory,
     )
     
     # Execute

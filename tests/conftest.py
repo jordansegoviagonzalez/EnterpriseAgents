@@ -9,13 +9,14 @@ from enterpriseagents.core.models import AcceptanceCriteria, Task, ToolCall
 from enterpriseagents.llm.provider import LlmProvider
 
 
+from enterpriseagents.core.router import NextAction, RoutingDecision
+
 class MockLlmProvider(LlmProvider):
-    """A fake brain for testing.
+    """A fake brain for testing."""
     
-    Returns deterministic answers so we can test the workflow logic
-    without needing API keys or network access.
-    """
-    
+    def __init__(self):
+        self._router_calls = 0
+
     def completion(self, messages: list[dict[str, str]], model: str | None = None) -> str:
         return "Mock completion"
 
@@ -39,6 +40,12 @@ class MockLlmProvider(LlmProvider):
             
         if schema == DocsOutput:
             return DocsOutput(content="# Mock README")
+            
+        if schema == RoutingDecision:
+            self._router_calls += 1
+            if self._router_calls == 1:
+                return RoutingDecision(action=NextAction.WORK, reason="Let's work")
+            return RoutingDecision(action=NextAction.FINISH, reason="Done")
             
         raise ValueError(f"Mock doesn't know how to fake {schema}")
 
