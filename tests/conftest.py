@@ -44,6 +44,8 @@ class MockLlmProvider(LlmProvider):
             self._router_calls += 1
             if self._router_calls == 1:
                 return RoutingDecision(action=NextAction.WORK, reason="Let's work")
+            if self._router_calls == 2:
+                return RoutingDecision(action=NextAction.REVIEW, reason="Let's review")
             return RoutingDecision(action=NextAction.FINISH, reason="Done")
             
         raise ValueError(f"Mock doesn't know how to fake {schema}")

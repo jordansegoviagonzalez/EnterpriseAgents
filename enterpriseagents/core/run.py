@@ -76,11 +76,18 @@ class RunCoordinator:
         
         # Initial Planning Phase (Mandatory start)
         tasks = self._director.plan(req.instruction)
+        
+        # Save plan
+        self._audit.save_plan({"tasks": [t.model_dump() for t in tasks]})
+        
         for ev in board.add_tasks(tasks):
             self._audit.event(ev)
 
         # Dynamic Execution Loop
         while True:
+            # Save task graph state
+            self._audit.save_task_graph({"tasks": [t.model_dump() for t in board.tasks.values()]})
+            
             # Ask the Brain what to do next
             decision = self._router.decide(board)
             
@@ -127,6 +134,15 @@ class RunCoordinator:
 
     def _run_reviewer(self, task: Any, workspace: str, dry_run: bool, board: KanbanBoard) -> None:
         review = self._reviewer.review(task=task, workspace=workspace, dry_run=dry_run)
+        
+        # Save test results
+        for ev in review.events:
+            if ev.type == EventType.TOOL_RESULT:
+                cmd = ev.payload.get("cmd", "Unknown")
+                ok = ev.payload.get("ok", False)
+                output = ev.payload.get("output", "")
+                self._audit.save_test_results(f"Task {task.id} Check: {cmd} -> {'PASS' if ok else 'FAIL'}\nOutput: {output}\n")
+
         if review.ok:
             self._audit.event(board.move(task.id, TaskStatus.DONE))
         else:
@@ -137,6 +153,16 @@ class RunCoordinator:
         docs_calls = self._docs.finalize(workspace=workspace, instruction=instruction)
         for call in docs_calls:
             self._execute_tool(call, workspace, dry_run)
+            
+        # Generate evidence packet
+        evidence_md = (
+            f"# EnterpriseAgents Run Evidence\n\n"
+            f"**Run ID:** {self._run_id}\n"
+            f"**Workspace:** {workspace}\n"
+            f"**Instruction:** {instruction}\n\n"
+            "This packet certifies that the software factory executed the workflow."
+        )
+        self._audit.save_evidence(evidence_md)
 
     def _execute_tool(self, call: Any, workspace: str, dry_run: bool) -> bool:
         decision = self._policy.evaluate(call=call, workspace=workspace)

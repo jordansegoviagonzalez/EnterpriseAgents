@@ -28,7 +28,15 @@ htmlcov/
 # Secrets
 .env
 .env.*
+.dev.vars
+.dev.vars.*
+GOALCODEX.md
 
 # Runtime outputs
+.enterpriseagents/
 workspace/
 runs/
+*.db
+*.sqlite
+*.sqlite3
+*.log

@@ -29,6 +29,7 @@ def run(
     instruction: str = typer.Argument(..., help="One instruction for the agent crew."),
     workspace: str = typer.Option("./workspace", help="Workspace folder for generated artifacts."),
     dry_run: bool = typer.Option(False, help="Print proposed actions; do not execute tools."),
+    local: bool = typer.Option(False, help="Use deterministic local scaffold (no API key required)."),
 ) -> None:
     """Run an end-to-end workflow."""
 
@@ -40,10 +41,14 @@ def run(
     run_id = str(uuid.uuid4())
 
     # Initialize the "Brain"
-    llm = OpenAIProvider(
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url,
-    )
+    if local:
+        from enterpriseagents.llm.local import LocalScaffoldProvider
+        llm = LocalScaffoldProvider()
+    else:
+        llm = OpenAIProvider(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url,
+        )
 
     # Initialize Memory
     memory_path = Path(".enterpriseagents/memory.db")

@@ -58,7 +58,7 @@ class ReviewerAgent:
                     type=EventType.TOOL_RESULT,
                     ts=utc_now_iso(),
                     run_id="",
-                    payload={"task_id": task.id, "cmd": cmd, "ok": res.ok},
+                    payload={"task_id": task.id, "cmd": cmd, "ok": res.ok, "output": res.output},
                 )
             )
             if not res.ok:

@@ -63,4 +63,32 @@ def test_end_to_end_flow(tmp_path, mock_llm):
     assert (workspace / "README.md").exists()
     
     # 4. Did we get audit logs?
-    assert (runs_dir / "test-run" / "run_packet.json").exists()
+    run_dir = runs_dir / "test-run"
+    assert (run_dir / "metadata.json").exists()
+    assert (run_dir / "plan.json").exists()
+    assert (run_dir / "task_graph.json").exists()
+    assert (run_dir / "tool_calls.jsonl").exists()
+    assert (run_dir / "policy_decisions.jsonl").exists()
+    assert (run_dir / "test_results.txt").exists()
+    assert (run_dir / "evidence_packet.md").exists()
+
+    # Validate JSON structure
+    import json
+    with (run_dir / "metadata.json").open() as f:
+        json.load(f)
+    with (run_dir / "plan.json").open() as f:
+        json.load(f)
+    with (run_dir / "task_graph.json").open() as f:
+        json.load(f)
+
+    # Validate JSONL structure
+    def validate_jsonl(path):
+        with path.open() as f:
+            for line in f:
+                if line.strip():
+                    json.loads(line)
+
+    validate_jsonl(run_dir / "tool_calls.jsonl")
+    validate_jsonl(run_dir / "policy_decisions.jsonl")
+    validate_jsonl(run_dir / "events.jsonl")
+    validate_jsonl(run_dir / "tool_results.jsonl")
