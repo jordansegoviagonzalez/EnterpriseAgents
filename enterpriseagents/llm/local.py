@@ -14,7 +14,7 @@ class LocalScaffoldProvider(LlmProvider):
     Bypasses the need for paid LLM APIs while verifying the orchestration layer.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._router_calls = 0
 
     def completion(self, messages: list[dict[str, str]], model: str | None = None) -> str:

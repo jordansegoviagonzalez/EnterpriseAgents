@@ -1,9 +1,11 @@
-import pytest
 import json
-from pathlib import Path
+
+import pytest
+
 from enterpriseagents.audit.logger import AuditLogger
-from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.core.models import ToolCall
+from enterpriseagents.policy.policy import PolicyEngine
+
 
 @pytest.fixture
 def policy():

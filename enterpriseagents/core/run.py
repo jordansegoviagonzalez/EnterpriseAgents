@@ -14,6 +14,7 @@ from enterpriseagents.core.kanban import KanbanBoard
 from enterpriseagents.core.models import TaskStatus
 from enterpriseagents.core.router import DynamicRouter, NextAction
 from enterpriseagents.memory.store import MemoryStore
+from enterpriseagents.policy.approvals import Approver, DenyByDefaultApprover
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 from enterpriseagents.utils.time import utc_now_iso
@@ -48,6 +49,7 @@ class RunCoordinator:
         docs: DocsAgent,
         router: DynamicRouter,
         memory: MemoryStore,
+        approver: Approver | None = None,
     ) -> None:
         self._run_id = run_id
         self._audit = audit
@@ -59,6 +61,7 @@ class RunCoordinator:
         self._docs = docs
         self._router = router
         self._memory = memory
+        self._approver = approver or DenyByDefaultApprover()
 
     def execute(self, req: RunRequest) -> None:
         Path(req.workspace).mkdir(parents=True, exist_ok=True)
@@ -171,6 +174,17 @@ class RunCoordinator:
 
         if decision.denied:
             return False
+
+        if decision.requires_approval:
+            approval = self._approver.request(call=call, policy_decision=decision)
+            self._audit.approval(approval.to_record(call=call, policy_decision=decision))
+            if not approval.approved:
+                self._audit.tool_result(
+                    call.call_id,
+                    ok=False,
+                    output=f"APPROVAL_DENIED: {approval.reason or 'No reason provided'}",
+                )
+                return False
 
         if dry_run:
             self._audit.tool_result(call.call_id, ok=True, output="DRY_RUN: not executed")

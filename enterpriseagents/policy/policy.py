@@ -19,17 +19,32 @@ class PolicyDecision:
     def denied(self) -> bool:
         return not self.allowed
 
+    @property
+    def requires_approval(self) -> bool:
+        return self.allowed and self.needs_approval
+
+    @property
+    def decision_label(self) -> str:
+        if not self.allowed:
+            return "BLOCK"
+        if self.needs_approval:
+            return "REQUIRE_APPROVAL"
+        return "ALLOW"
+
     def to_record(self, call: ToolCall) -> dict[str, Any]:
         target_path = call.args.get("path")
+        command = call.args.get("command")
         return {
             "ts": utc_now_iso(),
             "timestamp": utc_now_iso(),
             "call_id": call.call_id,
             "tool": call.tool_name,
             "action_type": call.tool_name,
+            "command": str(command) if command is not None else None,
             "target_path": str(target_path) if target_path is not None else None,
             "allowed": self.allowed,
-            "decision": "ALLOW" if self.allowed else "BLOCK",
+            "decision": self.decision_label,
+            "policy_decision": self.decision_label,
             "needs_approval": self.needs_approval,
             "reason": self.reason,
             "args": call.args,

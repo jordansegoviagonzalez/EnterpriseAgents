@@ -16,7 +16,14 @@ from enterpriseagents.config.settings import Settings
 from enterpriseagents.core.router import DynamicRouter
 from enterpriseagents.core.run import RunCoordinator, RunRequest
 from enterpriseagents.llm.openai import OpenAIProvider
+from enterpriseagents.llm.provider import LlmProvider
 from enterpriseagents.memory.store import MemoryStore
+from enterpriseagents.policy.approvals import (
+    Approver,
+    CliApprover,
+    DenyByDefaultApprover,
+    StaticApprover,
+)
 from enterpriseagents.policy.policy import PolicyEngine
 from enterpriseagents.tools.registry import ToolRegistry
 
@@ -30,6 +37,8 @@ def run(
     workspace: str = typer.Option("./workspace", help="Workspace folder for generated artifacts."),
     dry_run: bool = typer.Option(False, help="Print proposed actions; do not execute tools."),
     local: bool = typer.Option(False, help="Use deterministic local scaffold (no API key required)."),
+    non_interactive: bool = typer.Option(False, help="Deny approval-required actions instead of prompting."),
+    yes: bool = typer.Option(False, "--yes", help="Approve approval-required actions without prompting."),
 ) -> None:
     """Run an end-to-end workflow."""
 
@@ -41,6 +50,7 @@ def run(
     run_id = str(uuid.uuid4())
 
     # Initialize the "Brain"
+    llm: LlmProvider
     if local:
         from enterpriseagents.llm.local import LocalScaffoldProvider
         llm = LocalScaffoldProvider()
@@ -61,6 +71,13 @@ def run(
     audit = AuditLogger(runs_dir=Path(settings.runs_dir), run_id=run_id)
     policy = PolicyEngine()
     tools = ToolRegistry.default()
+    approver: Approver
+    if yes:
+        approver = StaticApprover(approved=True, reason="Approved by --yes")
+    elif non_interactive:
+        approver = DenyByDefaultApprover()
+    else:
+        approver = CliApprover()
 
     # Injecting the brain into the agents
     director = DirectorAgent(llm=llm)
@@ -79,6 +96,7 @@ def run(
         docs=docs_agent,
         router=router,
         memory=memory,
+        approver=approver,
     )
 
     console.print(Panel.fit(f"[bold]EnterpriseAgents[/bold]\nRun: {run_id}\nWorkspace: {workspace}"))
