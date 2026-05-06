@@ -30,9 +30,9 @@ class RunRequest:
 class RunCoordinator:
     """Manages the complete lifecycle of a workflow execution.
 
-    The Run Coordinator serves as the central orchestration engine. It initializes 
-    the environment, manages the Kanban state, facilitates communication between agents 
-    via the Dynamic Router, and ensures that all events are properly audited and 
+    The Run Coordinator serves as the central orchestration engine. It initializes
+    the environment, manages the Kanban state, facilitates communication between agents
+    via the Dynamic Router, and ensures that all events are properly audited and
     governed by policy.
     """
 
@@ -76,13 +76,13 @@ class RunCoordinator:
         )
 
         board = KanbanBoard(run_id=self._run_id)
-        
+
         # Initial Planning Phase (Mandatory start)
         tasks = self._director.plan(req.instruction)
-        
+
         # Save plan
         self._audit.save_plan({"tasks": [t.model_dump() for t in tasks]})
-        
+
         for ev in board.add_tasks(tasks):
             self._audit.event(ev)
 
@@ -90,15 +90,15 @@ class RunCoordinator:
         while True:
             # Save task graph state
             self._audit.save_task_graph({"tasks": [t.model_dump() for t in board.tasks.values()]})
-            
+
             # Ask the Brain what to do next
             decision = self._router.decide(board)
-            
+
             if decision.action == NextAction.FINISH:
                 break
-                
+
             if decision.action == NextAction.PLAN:
-                # In a future iteration, we can replan. 
+                # In a future iteration, we can replan.
                 # For now, we assume initial plan is sufficient or log a warning.
                 pass
 
@@ -137,14 +137,16 @@ class RunCoordinator:
 
     def _run_reviewer(self, task: Any, workspace: str, dry_run: bool, board: KanbanBoard) -> None:
         review = self._reviewer.review(task=task, workspace=workspace, dry_run=dry_run)
-        
+
         # Save test results
         for ev in review.events:
             if ev.type == EventType.TOOL_RESULT:
                 cmd = ev.payload.get("cmd", "Unknown")
                 ok = ev.payload.get("ok", False)
                 output = ev.payload.get("output", "")
-                self._audit.save_test_results(f"Task {task.id} Check: {cmd} -> {'PASS' if ok else 'FAIL'}\nOutput: {output}\n")
+                self._audit.save_test_results(
+                    f"Task {task.id} Check: {cmd} -> {'PASS' if ok else 'FAIL'}\nOutput: {output}\n"
+                )
 
         if review.ok:
             self._audit.event(board.move(task.id, TaskStatus.DONE))
@@ -156,7 +158,7 @@ class RunCoordinator:
         docs_calls = self._docs.finalize(workspace=workspace, instruction=instruction)
         for call in docs_calls:
             self._execute_tool(call, workspace, dry_run)
-            
+
         # Generate evidence packet
         evidence_md = (
             f"# EnterpriseAgents Run Evidence\n\n"

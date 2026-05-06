@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import cast
 
 from pydantic import BaseModel
@@ -9,7 +9,7 @@ from enterpriseagents.core.kanban import KanbanBoard
 from enterpriseagents.llm.provider import LlmProvider
 
 
-class NextAction(str, Enum):
+class NextAction(StrEnum):
     PLAN = "plan"
     WORK = "work"
     REVIEW = "review"
@@ -18,6 +18,7 @@ class NextAction(str, Enum):
 
 class RoutingDecision(BaseModel):
     """Represents the strategic decision for the next workflow phase."""
+
     action: NextAction
     reason: str
     target_task_id: str | None = None
@@ -36,7 +37,7 @@ class DynamicRouter:
 
     def decide(self, board: KanbanBoard) -> RoutingDecision:
         """Evaluates the board state to produce a routing decision."""
-        
+
         # We summarize the board state for the LLM
         # This keeps the context small while providing necessary info
         summary = {

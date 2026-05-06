@@ -36,9 +36,15 @@ def run(
     instruction: str = typer.Argument(..., help="One instruction for the agent crew."),
     workspace: str = typer.Option("./workspace", help="Workspace folder for generated artifacts."),
     dry_run: bool = typer.Option(False, help="Print proposed actions; do not execute tools."),
-    local: bool = typer.Option(False, help="Use deterministic local scaffold (no API key required)."),
-    non_interactive: bool = typer.Option(False, help="Deny approval-required actions instead of prompting."),
-    yes: bool = typer.Option(False, "--yes", help="Approve approval-required actions without prompting."),
+    local: bool = typer.Option(
+        False, help="Use deterministic local scaffold (no API key required)."
+    ),
+    non_interactive: bool = typer.Option(
+        False, help="Deny approval-required actions instead of prompting."
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", help="Approve approval-required actions without prompting."
+    ),
 ) -> None:
     """Run an end-to-end workflow."""
 
@@ -53,6 +59,7 @@ def run(
     llm: LlmProvider
     if local:
         from enterpriseagents.llm.local import LocalScaffoldProvider
+
         llm = LocalScaffoldProvider()
     else:
         llm = OpenAIProvider(
@@ -64,7 +71,7 @@ def run(
     memory_path = Path(".enterpriseagents/memory.db")
     memory_path.parent.mkdir(exist_ok=True)
     memory = MemoryStore(db_path=memory_path)
-    
+
     # Initialize Router
     router = DynamicRouter(llm=llm)
 
@@ -99,12 +106,16 @@ def run(
         approver=approver,
     )
 
-    console.print(Panel.fit(f"[bold]EnterpriseAgents[/bold]\nRun: {run_id}\nWorkspace: {workspace}"))
+    console.print(
+        Panel.fit(f"[bold]EnterpriseAgents[/bold]\nRun: {run_id}\nWorkspace: {workspace}")
+    )
     if dry_run:
         console.print("[yellow]DRY RUN enabled — no tools will be executed.[/yellow]")
 
     try:
-        coordinator.execute(RunRequest(instruction=instruction, workspace=workspace, dry_run=dry_run))
+        coordinator.execute(
+            RunRequest(instruction=instruction, workspace=workspace, dry_run=dry_run)
+        )
         console.print(Panel.fit(f"[green]Done.[/green]\nEvidence: runs/{run_id}/"))
     except Exception as e:
         console.print(f"[red]Run failed:[/red] {e}")

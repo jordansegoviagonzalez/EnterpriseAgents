@@ -120,7 +120,9 @@ def test_blocked_action_never_requests_approval_or_executes(tmp_path):
     tools = RecordingTools(events=events)
     approver = RecordingApprover(approved=True, events=events)
     coordinator = make_coordinator(tmp_path, approver=approver, tools=tools)
-    call = ToolCall(tool_name="write_file", args={"path": "secret.txt", "content": "x"}, call_id="blocked")
+    call = ToolCall(
+        tool_name="write_file", args={"path": "secret.txt", "content": "x"}, call_id="blocked"
+    )
 
     ok = coordinator._execute_tool(call, str(tmp_path / "workspace"), False)
 

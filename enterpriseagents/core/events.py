@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     RUN_STARTED = "RUN_STARTED"
     TASK_CREATED = "TASK_CREATED"
     TASK_STARTED = "TASK_STARTED"

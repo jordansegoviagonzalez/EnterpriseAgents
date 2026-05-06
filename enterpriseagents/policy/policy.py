@@ -55,7 +55,6 @@ class PolicyEngine:
     """Central policy gate for tool calls."""
 
     def __init__(self) -> None:
-        # Commands that are generally considered safe for automated workflows
         self._shell_allowlist = [
             re.compile(r"^python3?(\s+.*|$)"),
             re.compile(r"^pytest(\s+.*|$)"),
@@ -63,56 +62,98 @@ class PolicyEngine:
             re.compile(r"^ls(\s+.*|$)"),
             re.compile(r"^cat(\s+.*|$)"),
         ]
-        # Keywords that are strictly forbidden regardless of allowlist
         self._dangerous_keywords = [
-            "sudo", "rm -rf", "chmod", "chown", "curl", "wget", "nc", "bash", "sh", "mkfifo"
+            "sudo",
+            "rm -rf",
+            "chmod",
+            "chown",
+            "curl",
+            "wget",
+            "nc",
+            "bash",
+            "sh",
+            "mkfifo",
         ]
 
     def evaluate(self, *, call: ToolCall, workspace: str) -> PolicyDecision:
         ws_path = Path(workspace).resolve()
 
-        # 1. Workspace Boundary Check for Files
         if call.tool_name in {"write_file", "read_file"}:
-            rel_path = str(call.args.get("path", ""))
-            try:
-                target_path = (ws_path / rel_path).resolve()
-                if ws_path not in target_path.parents and target_path != ws_path:
-                    return PolicyDecision(allowed=False, needs_approval=False, reason="Path traversal blocked: outside workspace")
-                
-                # Block sensitive files
-                if self._is_sensitive_file(target_path.relative_to(ws_path)):
-                    return PolicyDecision(allowed=False, needs_approval=False, reason="Access to sensitive file blocked")
-                
-            except Exception:
-                return PolicyDecision(allowed=False, needs_approval=False, reason="Invalid path structure")
+            return self._evaluate_file_access(call=call, workspace=ws_path)
 
-            return PolicyDecision(allowed=True, needs_approval=False, reason="File access within workspace allowed")
-
-        # 2. Command Security Check
         if call.tool_name == "run_command":
-            cmd = str(call.args.get("command", "")).strip()
-            allow_shell = bool(call.args.get("allow_shell", False))
-
-            # Block dangerous keywords
-            for kw in self._dangerous_keywords:
-                if kw in cmd:
-                    return PolicyDecision(allowed=False, needs_approval=False, reason=f"Dangerous keyword '{kw}' blocked")
-
-            # Check allowlist
-            allowed_pattern = any(p.match(cmd) for p in self._shell_allowlist)
-            
-            if allow_shell:
-                return PolicyDecision(allowed=True, needs_approval=True, reason="High-risk shell=True requested (approval mandatory)")
-
-            if not allowed_pattern:
-                return PolicyDecision(allowed=False, needs_approval=False, reason="Command not in security allowlist")
-
-            return PolicyDecision(allowed=True, needs_approval=True, reason="Allowlisted command (approval recommended)")
+            return self._evaluate_command(call)
 
         if call.tool_name == "git_commit":
-            return PolicyDecision(allowed=True, needs_approval=True, reason="Commits require approval")
+            return PolicyDecision(
+                allowed=True, needs_approval=True, reason="Commits require approval"
+            )
 
         return PolicyDecision(allowed=False, needs_approval=False, reason="Unknown tool")
+
+    def _evaluate_file_access(self, *, call: ToolCall, workspace: Path) -> PolicyDecision:
+        rel_path = str(call.args.get("path", ""))
+
+        try:
+            target_path = (workspace / rel_path).resolve()
+            relative_path = target_path.relative_to(workspace)
+        except ValueError:
+            return PolicyDecision(
+                allowed=False,
+                needs_approval=False,
+                reason="Path traversal blocked: outside workspace",
+            )
+        except Exception:
+            return PolicyDecision(
+                allowed=False,
+                needs_approval=False,
+                reason="Invalid path structure",
+            )
+
+        if self._is_sensitive_file(relative_path):
+            return PolicyDecision(
+                allowed=False,
+                needs_approval=False,
+                reason="Access to sensitive file blocked",
+            )
+
+        return PolicyDecision(
+            allowed=True,
+            needs_approval=False,
+            reason="File access within workspace allowed",
+        )
+
+    def _evaluate_command(self, call: ToolCall) -> PolicyDecision:
+        command = str(call.args.get("command", "")).strip()
+        allow_shell = bool(call.args.get("allow_shell", False))
+
+        for keyword in self._dangerous_keywords:
+            if keyword in command:
+                return PolicyDecision(
+                    allowed=False,
+                    needs_approval=False,
+                    reason=f"Dangerous keyword '{keyword}' blocked",
+                )
+
+        if allow_shell:
+            return PolicyDecision(
+                allowed=True,
+                needs_approval=True,
+                reason="High-risk shell=True requested (approval mandatory)",
+            )
+
+        if not any(pattern.match(command) for pattern in self._shell_allowlist):
+            return PolicyDecision(
+                allowed=False,
+                needs_approval=False,
+                reason="Command not in security allowlist",
+            )
+
+        return PolicyDecision(
+            allowed=True,
+            needs_approval=True,
+            reason="Allowlisted command (approval recommended)",
+        )
 
     def _is_sensitive_file(self, path: str | Path) -> bool:
         normalized_path = Path(str(path).replace("\\", "/"))
